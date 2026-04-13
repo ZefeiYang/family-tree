@@ -18,8 +18,13 @@
     <!-- 第三方库 -->
     <!-- XLSX 库用于 Excel 文件解析 -->
     <script src="js/xlsx.full.min.js"></script>
-    <!-- jsPDF 用于 PDF 导出 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- jsPDF 用于 PDF 导出 (本地备份，避免 CDN 失败) -->
+    <script src="js/jspdf.umd.min.js"></script>
+    <script>
+        if (typeof window.jspdf === 'undefined' && typeof window.jspdf !== 'undefined') {
+            window.jspdf = { jsPDF: window.jspdf };
+        }
+    </script>
     <!-- html2canvas 用于截图 -->
     <script src="js/html2canvas.min.js"></script>
     <!-- 农历转换库 -->

@@ -1,7 +1,7 @@
 // 日期处理工具函数
 
 // 解析日期字符串 - 支持 Excel 日期格式和标准日期格式
-function parseDate(dateStr) {
+export function parseDate(dateStr) {
     if (!dateStr) return null;
     if (/^\d+$/.test(dateStr)) {
         const excelDate = parseInt(dateStr);
@@ -18,7 +18,7 @@ function parseDate(dateStr) {
 }
 
 // 转换为农历日期 - 使用 Lunar 库进行转换
-function toLunarDate(date) {
+export function toLunarDate(date) {
     if (!date || isNaN(date.getTime())) return '';
     try {
         // 检查Lunar库是否可用
@@ -38,10 +38,8 @@ function toLunarDate(date) {
 }
 
 // 格式化日期显示 - 根据用户选择的日期格式返回相应格式
-function formatDate(date) {
+export function formatDate(date, calendarStyle = 'solar') {
     if (!date || isNaN(date.getTime())) return '';
-    
-    const calendarStyle = document.getElementById('calendarStyle').value;
     
     // 如果选择了"不显示"，则返回空字符串
     if (calendarStyle === 'none') {

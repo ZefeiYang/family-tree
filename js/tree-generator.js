@@ -1,4 +1,5 @@
 // 树形图生成器，负责处理族谱数据和渲染
+import { parseDate, formatDate } from './date-utils.js';
 
 // 族谱生成函数 - 主要入口点
 function generateFamilyTree(data, selectedRootId = null) {
@@ -583,4 +584,7 @@ function buildTree(person, level = 0, parentInfo = null) {
     }
 
     return html;
-} 
+}
+
+// 导出核心函数供测试使用（必须放在函数定义之后）
+export { buildTree, calculateTreeSize, getGenderIcon, getChildOrderLabel }; 
