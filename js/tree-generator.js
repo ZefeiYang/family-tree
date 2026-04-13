@@ -1,6 +1,198 @@
 // 树形图生成器，负责处理族谱数据和渲染
 import { parseDate, formatDate } from './date-utils.js';
 
+// ============================================
+// 数据验证层
+// ============================================
+
+/**
+ * 验证家族数据，返回错误列表
+ * @param {Array} data - 族谱数据数组
+ * @returns {Array<{row: number, message: string}>} 错误列表
+ */
+function validateFamilyData(data) {
+    const errors = [];
+    if (!Array.isArray(data)) {
+        errors.push({ row: 0, message: '数据格式错误：应为数组' });
+        return errors;
+    }
+
+    // 1. 收集所有ID，检查重复
+    const idSet = new Set();
+    const idCount = {};
+    data.forEach((person, index) => {
+        const id = person.人物ID;
+        if (id === undefined || id === null || id === '') {
+            errors.push({
+                row: index + 1,
+                message: `第 ${index + 1} 行：人物ID缺失`
+            });
+        } else {
+            idCount[id] = (idCount[id] || 0) + 1;
+            if (idCount[id] > 1) {
+                errors.push({
+                    row: index + 1,
+                    message: `第 ${index + 1} 行：人物ID "${id}" 重复（第 ${idCount[id]} 次出现）`
+                });
+            }
+        }
+        idSet.add(id);
+    });
+
+    // 2. 检查必填字段和引用完整性
+    data.forEach((person, index) => {
+        const row = index + 1;
+        const name = person.姓名;
+        if (!name || name.trim() === '') {
+            errors.push({
+                row,
+                message: `第 ${row} 行：姓名不能为空`
+            });
+        }
+
+        // 检查父母引用
+        ['父亲ID', '母亲ID'].forEach(parentType => {
+            const parentId = person[parentType];
+            if (parentId && !idSet.has(parentId)) {
+                errors.push({
+                    row,
+                    message: `第 ${row} 行：${person.姓名 || '未知人物'} 的${parentType} "${parentId}" 不存在`
+                });
+            }
+        });
+
+        // 检查配偶引用（支持逗号分隔的多个配偶）
+        if (person.配偶ID) {
+            const spouseIds = String(person.配偶ID).split(',').map(s => s.trim()).filter(s => s);
+            spouseIds.forEach(spouseId => {
+                if (!idSet.has(spouseId)) {
+                    errors.push({
+                        row,
+                        message: `第 ${row} 行：${person.姓名 || '未知人物'} 的配偶ID "${spouseId}" 不存在`
+                    });
+                }
+            });
+        }
+
+        // 检查日期格式和逻辑
+        const birthDate = parseDate(person.出生日期);
+        const deathDate = parseDate(person.死亡日期);
+
+        if (person.出生日期 && birthDate === null) {
+            errors.push({
+                row,
+                message: `第 ${row} 行：出生日期格式错误 "${person.出生日期}"`
+            });
+        }
+
+        if (person.死亡日期 && deathDate === null) {
+            errors.push({
+                row,
+                message: `第 ${row} 行：死亡日期格式错误 "${person.死亡日期}"`
+            });
+        }
+
+        if (birthDate && deathDate && birthDate > deathDate) {
+            errors.push({
+                row,
+                message: `第 ${row} 行：${person.姓名 || '未知人物'} 的出生日期晚于死亡日期`
+            });
+        }
+    });
+
+    // 3. 检测循环引用（亲子关系）
+    const cycles = detectCycles(data);
+    cycles.forEach(cycle => {
+        errors.push({
+            row: 0,
+            message: `检测到循环引用：${cycle.join(' → ')} → ${cycle[0]}`
+        });
+    });
+
+    // 4. 检测孤儿节点（有父母ID但父母不存在）- 已在上面检查
+
+    // 5. 警告：多配偶（超过3个）
+    data.forEach((person, index) => {
+        if (person.配偶ID) {
+            const spouseCount = String(person.配偶ID).split(',').filter(s => s.trim()).length;
+            if (spouseCount > 3) {
+                errors.push({
+                    row: index + 1,
+                    message: `第 ${index + 1} 行：${person.姓名 || '未知人物'} 有 ${spouseCount} 个配偶（建议 ≤ 3）`
+                });
+            }
+        }
+    });
+
+    return errors;
+}
+
+/**
+ * 检测亲子关系中的循环引用
+ * @param {Array} data - 族谱数据
+ * @returns {Array<Array<string>>} 循环路径列表
+ */
+function detectCycles(data) {
+    const cycles = [];
+    const personMap = {};
+    data.forEach(p => {
+        personMap[p.人物ID] = p;
+    });
+
+    // 构建父子关系图
+    const graph = {};
+    data.forEach(p => {
+        graph[p.人物ID] = [];
+        if (p.父亲ID && personMap[p.父亲ID]) {
+            graph[p.人物ID].push(p.父亲ID);
+        }
+        if (p.母亲ID && personMap[p.母亲ID]) {
+            graph[p.人物ID].push(p.母亲ID);
+        }
+    });
+
+    // DFS 检测循环
+    const visited = new Set();
+    const recursionStack = new Set();
+    const path = [];
+
+    function dfs(node) {
+        if (recursionStack.has(node)) {
+            // 找到循环，记录路径
+            const cycleStart = path.indexOf(node);
+            if (cycleStart !== -1) {
+                cycles.push([...path.slice(cycleStart), node]);
+            }
+            return;
+        }
+        if (visited.has(node)) return;
+
+        visited.add(node);
+        recursionStack.add(node);
+        path.push(node);
+
+        const parents = graph[node] || [];
+        for (const parent of parents) {
+            dfs(parent);
+        }
+
+        path.pop();
+        recursionStack.delete(node);
+    }
+
+    Object.keys(graph).forEach(node => {
+        if (!visited.has(node)) {
+            dfs(node);
+        }
+    });
+
+    return cycles;
+}
+
+// ============================================
+// 原有代码从下面继续
+// ============================================
+
 // 族谱生成函数 - 主要入口点
 function generateFamilyTree(data, selectedRootId = null) {
     const container = document.getElementById('tree-container');
@@ -587,4 +779,4 @@ function buildTree(person, level = 0, parentInfo = null) {
 }
 
 // 导出核心函数供测试使用（必须放在函数定义之后）
-export { buildTree, calculateTreeSize, getGenderIcon, getChildOrderLabel }; 
+export { buildTree, calculateTreeSize, getGenderIcon, getChildOrderLabel, validateFamilyData, detectCycles }; 

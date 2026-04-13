@@ -1,4 +1,6 @@
 // 核心JS文件，处理初始化和事件监听
+import { validateFamilyData } from './tree-generator.js';
+
 let jsPDF;
 try {
     // 尝试从window.jspdf获取jsPDF
@@ -9,6 +11,54 @@ try {
     }
 } catch (e) {
     console.error('初始化jsPDF失败:', e);
+}
+
+// 显示验证错误
+function displayValidationErrors(errors) {
+    const container = document.getElementById('tree-container');
+    if (!container) return;
+
+    const errorHtml = `
+        <div class="validation-errors" style="
+            background-color: #fff3f3;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 800px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        ">
+            <h3 style="color: #721c24; margin-top: 0; display: flex; align-items: center; gap: 8px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                数据验证失败
+            </h3>
+            <p style="color: #721c24; margin-bottom: 15px;">
+                检测到以下问题，请修正后重新上传：
+            </p>
+            <ul style="color: #721c24; margin: 0; padding-left: 20px;">
+                ${errors.map(err => `
+                    <li style="margin-bottom: 8px;">
+                        <strong>${err.row > 0 ? `第 ${err.row} 行` : '全局错误'}</strong>: ${err.message}
+                    </li>
+                `).join('')}
+            </ul>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #f5c6cb;">
+                <button onclick="document.getElementById('excelFile').value = ''" style="
+                    background-color: #dc3545;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                ">重新选择文件</button>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = errorHtml;
 }
 
 // 检查必要的库是否已加载
@@ -59,6 +109,7 @@ function initApp() {
     const excelFileInput = document.getElementById('excelFile');
     const exportPngButton = document.getElementById('exportPng');
     const exportPdfButton = document.getElementById('exportPdf');
+    const exportSvgButton = document.getElementById('exportSvg');
 
     // 监听样式变化
     treeStyleSelect.addEventListener('change', handleStyleChange);
@@ -72,6 +123,9 @@ function initApp() {
     // 导出功能
     exportPngButton.addEventListener('click', exportAsPng);
     exportPdfButton.addEventListener('click', exportAsPdf);
+    if (exportSvgButton) {
+        exportSvgButton.addEventListener('click', exportAsSvg);
+    }
 }
 
 // 样式变化处理函数
@@ -120,6 +174,13 @@ function handleFileUpload(e) {
             dateNF: 'yyyy/mm/dd',
             cellDates: true
         });
+
+        // 数据验证
+        const validationErrors = validateFamilyData(jsonData);
+        if (validationErrors.length > 0) {
+            displayValidationErrors(validationErrors);
+            return; // 阻止生成族谱
+        }
 
         // 保存数据以便日历样式更改时使用
         window.familyTreeData = jsonData;
@@ -413,6 +474,81 @@ function hideLoading() {
     const loadingDiv = document.getElementById('loading-overlay');
     if (loadingDiv) {
         document.body.removeChild(loadingDiv);
+    }
+}
+
+// 导出为SVG
+function exportAsSvg() {
+    showLoading('正在生成SVG，请稍候...');
+    
+    const treeContent = document.getElementById('tree-content');
+    if (!treeContent || !treeContent.innerHTML.trim()) {
+        hideLoading();
+        alert('无法导出SVG，请先生成族谱');
+        return;
+    }
+    
+    try {
+        // 克隆树内容
+        const clone = treeContent.cloneNode(true);
+        
+        // 创建临时容器
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.top = '0';
+        tempContainer.style.width = '100%';
+        tempContainer.style.height = 'auto';
+        tempContainer.style.background = '#fff';
+        tempContainer.style.overflow = 'visible';
+        document.body.appendChild(tempContainer);
+        
+        // 为克隆添加必要的样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .family-tree {
+                background: #fff !important;
+            }
+            .selector-container, .buttons, .controls, .legend {
+                display: none !important;
+            }
+        `;
+        clone.insertBefore(style, clone.firstChild);
+        tempContainer.appendChild(clone);
+        
+        // 等待布局完成
+        setTimeout(() => {
+            // 使用 XMLSerializer 序列化 DOM
+            const serializer = new XMLSerializer();
+            let svgContent = serializer.serializeToString(clone);
+            
+            // 添加 SVG 命名空间
+            if (!svgContent.includes('xmlns="http://www.w3.org/2000/svg"')) {
+                svgContent = svgContent.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+            
+            // 添加 XML 声明
+            svgContent = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n' + svgContent;
+            
+            // 清理临时容器
+            document.body.removeChild(tempContainer);
+            hideLoading();
+            
+            // 创建下载链接
+            const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = '家族族谱.svg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 100);
+    } catch (error) {
+        console.error('生成SVG失败：', error);
+        hideLoading();
+        alert('生成SVG失败，请稍后再试');
     }
 }
 
