@@ -42,6 +42,17 @@
     <div class="container">
         <button id="toggleSidebar" title="显示项目列表">☰ 项目</button>
         <h1>家族族谱生成器</h1>
+        
+        <!-- 打印页眉（仅在打印时显示） -->
+        <div class="print-header" style="display: none;">
+            <span id="printTitle">家族族谱</span>
+        </div>
+        
+        <!-- 打印页脚（仅在打印时显示） -->
+        <div class="print-footer" style="display: none;">
+            <span class="generated-time"></span>
+            <span class="page-number"></span>
+        </div>
         <div class="controls">
             <div class="file-upload">
                 <input type="file" id="excelFile" accept=".xlsx, .xls"/>
@@ -99,6 +110,7 @@
             <button id="exportPdf">导出为PDF</button>
             <button id="exportSvg">导出为SVG</button>
             <button id="exportJson">导出JSON</button>
+            <button id="printTree" class="no-print">🖨️ 打印族谱</button>
         </div>
         
         <!-- 导入区域 -->

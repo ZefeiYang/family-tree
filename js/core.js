@@ -175,6 +175,12 @@ async function initApp() {
         exportJsonButton.addEventListener('click', exportAsJson);
     }
     
+    // 打印功能
+    const printButton = document.getElementById('printTree');
+    if (printButton) {
+        printButton.addEventListener('click', printFamilyTree);
+    }
+    
     // JSON 导入
     if (importJsonInput) {
         importJsonInput.addEventListener('change', function() {
@@ -930,6 +936,40 @@ function showImportPreview(importData) {
 }
 
 // 计算世代数（用于元数据）
+
+// 页面加载完成后初始化应用
+document.addEventListener('DOMContentLoaded', initApp);
+
+// ============================================
+// 打印功能
+// ============================================
+
+/**
+ * 打印族谱
+ */
+function printFamilyTree() {
+    // 设置打印页眉
+    const printTitle = document.getElementById('printTitle');
+    if (printTitle) {
+        printTitle.textContent = document.title || '家族族谱';
+    }
+    
+    // 设置页脚生成时间
+    const generatedTimeEl = document.querySelector('.generated-time');
+    if (generatedTimeEl) {
+        generatedTimeEl.textContent = `生成于：${new Date().toLocaleDateString('zh-CN')}`;
+    }
+    
+    // 添加打印样式类（用于屏幕预览）
+    document.body.classList.add('print-mode');
+    
+    // 延迟一下让样式生效
+    setTimeout(() => {
+        window.print();
+        // 打印完成后移除类
+        document.body.classList.remove('print-mode');
+    }, 100);
+}
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', initApp);

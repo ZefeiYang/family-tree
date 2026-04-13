@@ -779,4 +779,163 @@ button:focus-visible {
     60% { transform: translateX(-3px); }
     80% { transform: translateX(3px); }
 }
+
+/* ============================================
+   打印优化
+   ============================================ */
+
+@media print {
+    /* 隐藏不需要打印的 UI 元素 */
+    .sidebar,
+    .buttons,
+    .controls,
+    .legend,
+    #render-progress,
+    #toggleSidebar,
+    .select-container,
+    .import-section,
+    .breadcrumb-container {
+        display: none !important;
+    }
+    
+    /* 重置容器样式 */
+    body {
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .container {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* 树容器优化 */
+    #tree-container {
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: auto !important;
+    }
+    
+    .tree-wrapper {
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    #tree-content {
+        box-shadow: none !important;
+        border: none !important;
+        background: white !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+    }
+    
+    /* 族谱节点 - 黑白打印优化 */
+    .family-tree {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    .person {
+        background: white !important;
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    
+    .person .gender-icon {
+        color: #000 !important;
+        background: none !important;
+    }
+    
+    .person .child-order {
+        background: #000 !important;
+        color: white !important;
+        border: 1px solid #000 !important;
+    }
+    
+    /* 连接线在打印时隐藏（避免混乱） */
+    .person .connector {
+        display: none !important;
+    }
+    
+    /* 日期样式 */
+    .dates {
+        color: #000 !important;
+        font-size: 10pt !important;
+    }
+    
+    .generation {
+        color: #333 !important;
+        font-weight: bold !important;
+    }
+    
+    /* 面包屑打印时隐藏 */
+    .breadcrumb-container {
+        display: none !important;
+    }
+    
+    /* 强制页面设置 */
+    @page {
+        size: auto;
+        margin: 2cm;
+        @top-center {
+            content: element(header);
+        }
+        @bottom-center {
+            content: element(footer);
+        }
+    }
+    
+    /* 打印页眉（仅在打印时显示） */
+    .print-header {
+        position: running(header);
+        text-align: center;
+        font-size: 14pt;
+        font-weight: bold;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 10px;
+    }
+    
+    /* 打印页脚（仅在打印时显示） */
+    .print-footer {
+        position: running(footer);
+        text-align: center;
+        font-size: 10pt;
+        margin-top: 20px;
+        border-top: 1px solid #ccc;
+        padding-top: 10px;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .print-footer .page-number::before {
+        content: "第 " counter(page) " 页 / 共 " counter(pages) " 页";
+    }
+    
+    /* 打印控制按钮 */
+    .no-print {
+        display: none !important;
+    }
+}
+
+/* 屏幕上的打印准备样式（打印前预览） */
+.print-mode .sidebar,
+.print-mode .buttons,
+.print-mode .controls,
+.print-mode .legend,
+.print-mode #render-progress,
+.print-mode #toggleSidebar,
+.print-mode .select-container,
+.print-mode .import-section,
+.print-mode .breadcrumb-container {
+    display: none !important;
+}
  
