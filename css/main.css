@@ -473,4 +473,78 @@ button:focus-visible {
 .no-match {
     color: #999;
     font-style: italic;
-} 
+}
+
+/* ============================================
+   内联编辑样式
+   ============================================ */
+
+.inline-edit-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 2px solid #4CAF50;
+    border-radius: 4px;
+    font-size: inherit;
+    font-family: inherit;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    outline: none;
+    transition: box-shadow 0.2s;
+}
+
+.inline-edit-input:focus {
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3);
+}
+
+/* 编辑中的卡片 */
+.person.editing {
+    outline: 2px solid #4CAF50;
+    outline-offset: 2px;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    position: relative;
+}
+
+/* 编辑状态提示 */
+.edit-status {
+    position: absolute;
+    top: -24px;
+    right: 0;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 100;
+    white-space: nowrap;
+}
+
+.edit-status.success {
+    background: #4CAF50;
+    color: white;
+    animation: fadeIn 0.3s ease, fadeOut 0.3s ease 1.7s forwards;
+}
+
+.edit-status.error {
+    background: #f44336;
+    color: white;
+    animation: shake 0.3s ease;
+}
+
+/* 动画定义 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-5px); }
+    40% { transform: translateX(5px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+}
+ 

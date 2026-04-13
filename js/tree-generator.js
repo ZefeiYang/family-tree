@@ -740,7 +740,45 @@ function generateFamilyTree(data, selectedRootId = null) {
         // 调整树形图样式，确保更好的显示效果
         adjustTreeDisplay();
     }
+    
+    // ============================================
+    // 内联编辑：事件委托
+    // =parameter>
+    // 在容器上委托处理点击事件
+    // ============================================
+    const treeContentEl = document.getElementById('tree-content');
+    if (treeContentEl) {
+        // 点击开始编辑
+        treeContentEl.addEventListener('click', function(e) {
+            const target = e.target;
+            
+            // 检查是否点击了可编辑字段
+            if (target.classList.contains('name') || target.classList.contains('dates')) {
+                const personEl = target.closest('.person');
+                if (!personEl) return;
+                
+                const personId = personEl.dataset.personId;
+                const field = target.dataset.field;
+                
+                // 防止正在编辑时重复触发
+                if (window.editingState && window.editingState.personId) {
+                    return;
+                }
+                
+                startInlineEdit(personId, field, target, personEl);
+            }
+        });
+        
+        // 键盘快捷键（全局）
+        treeContentEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && window.editingState) {
+                cancelEdit();
+            }
+        });
+    }
 }
+
+
 
 // 计算树的规模 - 用于确定容器大小
 function calculateTreeSize(person, level) {
@@ -844,12 +882,12 @@ function buildTree(person, level = 0, parentInfo = null) {
 
     let html = '';
     if (selectedStyle === 'tree') {
-        html = `<div class="person ${selectedStyle}">`;
+        html = `<div class="person ${selectedStyle}" data-person-id="${person.人物ID}" data-person-name="${person.姓名 || '未知'}">`;
         html += `<div class="person-node">`;
         html += `<div class="person-content">`;
         html += `<div class="generation">${generationLabel}</div>`;
-        html += `<div class="name">${childOrderLabel}${person.姓名 || '未知'} ${genderIcon}</div>`;
-        html += `<div class="dates">${birthDate || ''} ${deathDate ? ' - ' + deathDate : ''}</div>`;
+        html += `<div class="name" data-field="姓名">${childOrderLabel}${person.姓名 || '未知'} ${genderIcon}</div>`;
+        html += `<div class="dates" data-field="出生日期">${birthDate || ''} ${deathDate ? ' - ' + deathDate : ''}</div>`;
         html += `</div>`;
 
         if (person.配偶ID) {
@@ -863,8 +901,8 @@ function buildTree(person, level = 0, parentInfo = null) {
                     const spouseGenderIcon = getGenderIcon(spouse.性别);
                     html += `<div class="spouse-details">`;
                     html += `<div class="spouse-content">`;
-                    html += `<div class="name">${spouse.姓名 || '未知'} ${spouseGenderIcon}</div>`;
-                    html += `<div class="dates">${spouseBirthDate || ''} ${spouseDeathDate ? ' - ' + spouseDeathDate : ''}</div>`;
+                    html += `<div class="name" data-field="姓名">${spouse.姓名 || '未知'} ${spouseGenderIcon}</div>`;
+                    html += `<div class="dates" data-field="出生日期">${spouseBirthDate || ''} ${spouseDeathDate ? ' - ' + spouseDeathDate : ''}</div>`;
                     html += `</div>`;
                     html += `</div>`;
                 }
@@ -903,12 +941,12 @@ function buildTree(person, level = 0, parentInfo = null) {
 
         html += '</div>';
     } else if (selectedStyle === 'classic') {
-        html = `<div class="person ${selectedStyle}">`;
+        html = `<div class="person ${selectedStyle}" data-person-id="${person.人物ID}" data-person-name="${person.姓名 || '未知'}">`;
         html += `<div class="person-node">`;
         html += `<div class="person-content">`;
         html += `<div class="generation">${generationLabel}</div>`;
-        html += `<div class="name">${childOrderLabel}${person.姓名 || '未知'} ${genderIcon}</div>`;
-        html += `<div class="dates">${birthDate || ''} ${deathDate ? ' - ' + deathDate : ''}</div>`;
+        html += `<div class="name" data-field="姓名">${childOrderLabel}${person.姓名 || '未知'} ${genderIcon}</div>`;
+        html += `<div class="dates" data-field="出生日期">${birthDate || ''} ${deathDate ? ' - ' + deathDate : ''}</div>`;
         html += `</div>`;
 
         if (person.配偶ID) {
@@ -921,7 +959,7 @@ function buildTree(person, level = 0, parentInfo = null) {
                     const spouseDeathDate = formatDate(parseDate(spouse.死亡日期));
                     const spouseGenderIcon = getGenderIcon(spouse.性别);
                     html += `<div class="spouse-details">`;
-                    html += `<span class="name">${spouse.姓名 || '未知'} ${spouseGenderIcon}</span>`;
+                    html += `<span class="name" data-field="姓名">${spouse.姓名 || '未知'} ${spouseGenderIcon}</span>`;
                     html += `<span class="connector"></span>`;
                     html += `<span class="dates">${spouseBirthDate || ''} ${spouseDeathDate ? ' - ' + spouseDeathDate : ''}</span>`;
                     html += `</div>`;
@@ -961,12 +999,12 @@ function buildTree(person, level = 0, parentInfo = null) {
 
         html += '</div>';
     } else if (selectedStyle === 'vertical') {
-        html = `<div class="person ${selectedStyle}">`;
+        html = `<div class="person ${selectedStyle}" data-person-id="${person.人物ID}" data-person-name="${person.姓名 || '未知'}">`;
         html += `<div class="person-info">`;
         html += `<div class="person-details">`;
         html += `<div class="generation">${generationLabel}</div>`;
-        html += `<div class="name">${childOrderLabel}${person.姓名 || '未知'} ${genderIcon}</div>`;
-        html += `<div class="dates">${birthDate || ''} ${deathDate ? ' - ' + deathDate : ''}</div>`;
+        html += `<div class="name" data-field="姓名">${childOrderLabel}${person.姓名 || '未知'} ${genderIcon}</div>`;
+        html += `<div class="dates" data-field="出生日期">${birthDate || ''} ${deathDate ? ' - ' + deathDate : ''}</div>`;
         html += `</div>`;
 
         if (person.配偶ID) {
@@ -979,7 +1017,7 @@ function buildTree(person, level = 0, parentInfo = null) {
                     const spouseDeathDate = formatDate(parseDate(spouse.死亡日期));
                     const spouseGenderIcon = getGenderIcon(spouse.性别);
                     html += `<div class="spouse-details">`;
-                    html += `<span class="name">${spouse.姓名 || '未知'} ${spouseGenderIcon}</span>`;
+                    html += `<span class="name" data-field="姓名">${spouse.姓名 || '未知'} ${spouseGenderIcon}</span>`;
                     html += `<span class="connector">❤</span>`;
                     html += `<span class="dates">${spouseBirthDate || ''} ${spouseDeathDate ? ' - ' + spouseDeathDate : ''}</span>`;
                     html += `</div>`;
@@ -1016,12 +1054,12 @@ function buildTree(person, level = 0, parentInfo = null) {
 
         html += '</div>';
     } else if (selectedStyle === 'horizontal') {
-        html = `<div class="person ${selectedStyle}">`;
+        html = `<div class="person ${selectedStyle}" data-person-id="${person.人物ID}" data-person-name="${person.姓名 || '未知'}">`;
         html += `<div class="person-info">`;
         html += `<div class="person-details">`;
         html += `<div class="generation">${generationLabel}</div>`;
-        html += `<div class="name">${childOrderLabel}${person.姓名 || '未知'} ${genderIcon}</div>`;
-        html += `<div class="dates">${birthDate || ''} ${deathDate ? ' - ' + deathDate : ''}</div>`;
+        html += `<div class="name" data-field="姓名">${childOrderLabel}${person.姓名 || '未知'} ${genderIcon}</div>`;
+        html += `<div class="dates" data-field="出生日期">${birthDate || ''} ${deathDate ? ' - ' + deathDate : ''}</div>`;
         html += `</div>`;
 
         if (person.配偶ID) {
@@ -1034,7 +1072,7 @@ function buildTree(person, level = 0, parentInfo = null) {
                     const spouseDeathDate = formatDate(parseDate(spouse.死亡日期));
                     const spouseGenderIcon = getGenderIcon(spouse.性别);
                     html += `<div class="spouse-details">`;
-                    html += `<span class="name">${spouse.姓名 || '未知'} ${spouseGenderIcon}</span>`;
+                    html += `<span class="name" data-field="姓名">${spouse.姓名 || '未知'} ${spouseGenderIcon}</span>`;
                     html += `<span class="connector">❤</span>`;
                     html += `<span class="dates">${spouseBirthDate || ''} ${spouseDeathDate ? ' - ' + spouseDeathDate : ''}</span>`;
                     html += `</div>`;
@@ -1074,6 +1112,217 @@ function buildTree(person, level = 0, parentInfo = null) {
 
     return html;
 }
+
+// ============================================
+// 内联编辑功能
+// ============================================
+
+// 编辑状态管理（单例）
+window.editingState = {
+    personId: null,
+    field: null,
+    input: null,
+    originalValue: null,
+    displayEl: null
+};
+
+/**
+ * 开始内联编辑
+ */
+function startInlineEdit(personId, field, displayEl, personEl) {
+    // 如果已有编辑，先保存
+    if (window.editingState.personId && window.editingState.personId !== personId) {
+        saveEdit();
+    }
+    
+    const person = window.personMap[personId];
+    if (!person) return;
+    
+    const originalValue = person[field];
+    const currentDisplay = getDisplayValue(field, originalValue);
+    
+    // 创建输入框
+    const input = document.createElement('input');
+    input.type = field === '出生日期' ? 'date' : 'text';
+    input.className = 'inline-edit-input';
+    input.value = field === '出生日期' ? originalValue : (person.姓名 || '');
+    
+    // 替换显示内容
+    displayEl.innerHTML = '';
+    displayEl.appendChild(input);
+    input.focus();
+    
+    // 记录编辑状态
+    window.editingState = {
+        personId,
+        field,
+        input,
+        originalValue,
+        displayEl,
+        personEl
+    };
+    
+    // 添加编辑样式
+    personEl.classList.add('editing');
+    
+    // 绑定事件
+    input.addEventListener('blur', () => saveEdit());
+    input.addEventListener('keydown', handleEditKeydown);
+}
+
+/**
+ * 处理编辑键盘事件
+ */
+function handleEditKeydown(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        saveEdit();
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEdit();
+    }
+}
+
+/**
+ * 保存编辑
+ */
+function saveEdit() {
+    const state = window.editingState;
+    if (!state.personId) return;
+    
+    const { personId, field, input, displayEl, personEl } = state;
+    const newValue = input.value.trim();
+    
+    // 验证
+    const validationError = validateField(field, newValue);
+    if (validationError) {
+        showEditStatus(displayEl, 'error', validationError);
+        return;
+    }
+    
+    // 更新数据
+    const person = window.personMap[personId];
+    person[field] = field === '出生日期' ? newValue : newValue;
+    
+    // 局部更新 DOM
+    const newDisplay = getDisplayValue(field, newValue);
+    displayEl.innerHTML = newDisplay;
+    
+    // 移除编辑状态
+    personEl.classList.remove('editing');
+    window.editingState = { personId: null, field: null, input: null, originalValue: null, displayEl: null };
+    
+    // 显示成功提示
+    showEditStatus(displayEl, 'success');
+}
+
+/**
+ * 取消编辑
+ */
+function cancelEdit() {
+    const state = window.editingState;
+    if (!state.personId) return;
+    
+    const { displayEl, originalValue, field, personEl } = state;
+    
+    // 恢复原值
+    const originalDisplay = getDisplayValue(field, originalValue);
+    displayEl.innerHTML = originalDisplay;
+    
+    // 清理
+    personEl.classList.remove('editing');
+    window.editingState = { personId: null, field: null, input: null, originalValue: null, displayEl: null };
+}
+
+/**
+ * 验证字段值
+ */
+function validateField(field, value) {
+    if (field === '姓名' && !value) {
+        return '姓名不能为空';
+    }
+    if (field === '出生日期' && value) {
+        const date = parseDate(value);
+        if (!date) {
+            return '日期格式无效';
+        }
+    }
+    return null;
+}
+
+/**
+ * 获取字段显示值（根据 field 和原始值）
+ */
+function getDisplayValue(field, rawValue) {
+    if (field === '姓名') {
+        return rawValue || '未知';
+    }
+    if (field === '出生日期') {
+        // 从原始 Excel 格式转换为显示格式
+        const date = parseDate(rawValue);
+        return formatDate(date);
+    }
+    return rawValue;
+}
+
+/**
+ * 显示编辑状态（成功/失败）
+ */
+function showEditStatus(displayEl, type, message = '') {
+    // 移除旧状态
+    const oldStatus = displayEl.parentElement.querySelector('.edit-status');
+    if (oldStatus) oldStatus.remove();
+    
+    const status = document.createElement('span');
+    status.className = `edit-status ${type}`;
+    
+    if (type === 'success') {
+        status.textContent = '✓ 已保存';
+        status.style.cssText = `
+            position: absolute;
+            top: -20px;
+            right: 0;
+            background: #4CAF50;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            animation: fadeIn 0.3s, fadeOut 0.3s 1.7s forwards;
+            z-index: 10;
+        `;
+    } else if (type === 'error') {
+        status.textContent = `✕ ${message}`;
+        status.style.cssText = `
+            position: absolute;
+            top: -20px;
+            right: 0;
+            background: #f44336;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            animation: shake 0.3s;
+            z-index: 10;
+        `;
+    }
+    
+    // 确保父元素相对定位
+    if (getComputedStyle(displayEl.parentElement).position === 'static') {
+        displayEl.parentElement.style.position = 'relative';
+    }
+    
+    displayEl.parentElement.appendChild(status);
+    
+    // 自动移除
+    setTimeout(() => {
+        if (status.parentNode) {
+            status.remove();
+        }
+    }, 2000);
+}
+
+// 导出新增函数
+export { startInlineEdit, saveEdit, cancelEdit };
 
 // 导出核心函数供测试使用（必须放在函数定义之后）
 export { buildTree, calculateTreeSize, getGenderIcon, getChildOrderLabel, validateFamilyData, detectCycles, getAncestorPath, createBreadcrumb, calculateGenerations }; 
