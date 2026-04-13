@@ -262,7 +262,7 @@ async function initApp() {
             
             // 加载数据并渲染族谱
             window.familyTreeData = data;
-            generateFamilyTree(data);
+            await generateFamilyTree(data);
             
             // 高亮当前项目
             document.querySelectorAll('.project-item').forEach(el => {
@@ -343,7 +343,7 @@ async function initApp() {
         try {
             const { project, data } = await familyDB.loadProject(lastProjectId);
             window.familyTreeData = data;
-            generateFamilyTree(data);
+            await generateFamilyTree(data);
             document.title = project.name;
             
             // 高亮当前项目
@@ -374,7 +374,7 @@ function handleStyleChange() {
 }
 
 // 日历样式变化处理函数
-function handleCalendarChange() {
+async function handleCalendarChange() {
     // 重新生成族谱以更新日期显示
     const treeContainer = document.getElementById('tree-content');
     if (treeContainer && treeContainer.innerHTML.trim()) {
@@ -385,14 +385,14 @@ function handleCalendarChange() {
             // 重新生成族谱
             const existingData = window.familyTreeData;
             if (existingData) {
-                generateFamilyTree(existingData, selectedRootId);
+                await generateFamilyTree(existingData, selectedRootId);
             }
         }
     }
 }
 
 // 文件上传处理函数
-function handleFileUpload(e) {
+async function handleFileUpload(e) {
     const file = e.target.files[0];
     const reader = new FileReader();
 
@@ -415,7 +415,7 @@ function handleFileUpload(e) {
 
         // 保存数据以便日历样式更改时使用
         window.familyTreeData = jsonData;
-        generateFamilyTree(jsonData);
+        await generateFamilyTree(jsonData);
         
         // 自动保存新导入的数据
         if (typeof window.scheduleAutoSave === 'function') {
@@ -916,9 +916,9 @@ function showImportPreview(importData) {
     container.innerHTML = previewHtml;
     
     // 绑定按钮事件
-    document.getElementById('confirmImport').addEventListener('click', () => {
+    document.getElementById('confirmImport').addEventListener('click', async () => {
         window.familyTreeData = persons;
-        generateFamilyTree(persons);
+        await generateFamilyTree(persons);
         // 触发文件输入清空
         document.getElementById('excelFile').value = '';
     });

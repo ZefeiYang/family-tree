@@ -372,8 +372,8 @@ function createBreadcrumb(currentPerson, personMap) {
 // 原有代码从下面继续
 // ============================================
 
-// 族谱生成函数 - 主要入口点
-function generateFamilyTree(data, selectedRootId = null) {
+// 族谱生成函数 - 主要入口点（支持增量渲染）
+async function generateFamilyTree(data, selectedRootId = null) {
     const container = document.getElementById('tree-container');
     container.innerHTML = '';
 
@@ -733,12 +733,101 @@ function generateFamilyTree(data, selectedRootId = null) {
         
         // 构建树
         const rootNode = buildTree(selectedRoot, 0, null);
-        treeDiv.innerHTML = rootNode;
+        
+        // 使用增量渲染（避免大文件卡顿）
+        await renderTreeIncrementally(rootNode, treeDiv);
         
         renderTarget.appendChild(treeDiv);
         
         // 调整树形图样式，确保更好的显示效果
         adjustTreeDisplay();
+    }
+    
+    // ============================================
+    // 增量渲染：大文件分批插入，避免卡顿
+    // ============================================
+    async function renderTreeIncrementally(rootHtml, container, batchSize = 50) {
+        // 创建临时容器解析 HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = rootHtml;
+        
+        // 获取所有顶层 person 节点（children-container 下的 .child > .person）
+        const allPersonNodes = tempDiv.querySelectorAll('.person');
+        const totalNodes = allPersonNodes.length;
+        
+        if (totalNodes === 0) {
+            container.innerHTML = rootHtml;
+            return;
+        }
+        
+        // 清空容器，准备分批插入
+        container.innerHTML = '';
+        
+        // 显示进度条
+        const progressEl = document.getElementById('render-progress');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const cancelBtn = document.getElementById('progressCancel');
+        
+        if (progressEl) {
+            progressEl.style.display = 'flex';
+            progressFill.style.width = '0%';
+            progressFill.textContent = '0%';
+        }
+        
+        let cancelled = false;
+        if (cancelBtn) {
+            cancelBtn.onclick = () => {
+                cancelled = true;
+                if (progressEl) progressEl.style.display = 'none';
+            };
+        }
+        
+        // 分批插入节点
+        let inserted = 0;
+        const childrenContainer = tempDiv.querySelector('.children-container') || tempDiv;
+        const nodesArray = Array.from(childrenContainer.children);
+        
+        // 确保有 children-container，如果没有则使用 tempDiv 的直接子元素
+        const sourceNodes = childrenContainer === tempDiv ? tempDiv.childNodes : childrenContainer.childNodes;
+        const nodesToInsert = Array.from(sourceNodes).filter(node => 
+            node.nodeType === 1 // 只插入元素节点
+        );
+        
+        function insertBatch(startIndex) {
+            if (cancelled) return;
+            
+            const endIndex = Math.min(startIndex + batchSize, nodesToInsert.length);
+            
+            for (let i = startIndex; i < endIndex; i++) {
+                container.appendChild(nodesToInsert[i].cloneNode(true));
+                inserted++;
+            }
+            
+            // 更新进度
+            const percent = Math.round((inserted / totalNodes) * 100);
+            if (progressFill) {
+                progressFill.style.width = percent + '%';
+                progressFill.textContent = percent + '%';
+            }
+            if (progressText) {
+                progressText.textContent = `正在生成族谱... ${percent}% (${inserted}/${totalNodes})`;
+            }
+            
+            // 继续下一批
+            if (endIndex < nodesToInsert.length) {
+                requestAnimationFrame(() => insertBatch(endIndex));
+            } else {
+                // 完成
+                setTimeout(() => {
+                    if (progressEl) progressEl.style.display = 'none';
+                    console.log(`✅ 族谱渲染完成：${totalNodes} 个节点`);
+                }, 300);
+            }
+        }
+        
+        // 开始第一批
+        requestAnimationFrame(() => insertBatch(0));
     }
     
     // ============================================
