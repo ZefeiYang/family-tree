@@ -189,6 +189,163 @@ function detectCycles(data) {
     return cycles;
 }
 
+/**
+ * 获取人物的祖先路径（从根到当前）
+ * @param {string} personId - 当前人物ID
+ * @param {Object} personMap - 人物ID映射表
+ * @returns {Array<Object>} 祖先数组 [{id, name, generation}, ...]
+ */
+function getAncestorPath(personId, personMap) {
+    const path = [];
+    let current = personMap[personId];
+    
+    while (current) {
+        const parentIds = [];
+        if (current.父亲ID && personMap[current.父亲ID]) {
+            parentIds.push({ id: current.父亲ID, type: '父亲' });
+        }
+        if (current.母亲ID && personMap[current.母亲ID]) {
+            parentIds.push({ id: current.母亲ID, type: '母亲' });
+        }
+        
+        if (parentIds.length === 0) break;
+        
+        // 优先显示父亲，然后是母亲
+        const parent = parentIds[0];
+        const parentPerson = personMap[parent.id];
+        if (parentPerson) {
+            path.unshift({
+                id: parentPerson.人物ID,
+                name: parentPerson.姓名 || '未知',
+                relation: parent.type
+            });
+            current = parentPerson;
+        } else {
+            break;
+        }
+    }
+    
+    return path;
+}
+
+/**
+ * 创建面包屑导航元素
+ * @param {Object} currentPerson - 当前人物对象
+ * @param {Object} personMap - 人物ID映射表
+ * @returns {HTMLElement|null} 面包屑容器
+ */
+function createBreadcrumb(currentPerson, personMap) {
+    const ancestors = getAncestorPath(currentPerson.人物ID, personMap);
+    
+    // 如果层级小于3，不显示面包屑
+    if (ancestors.length < 2) {
+        return null;
+    }
+    
+    const container = document.createElement('div');
+    container.className = 'breadcrumb-container';
+    container.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px 20px;
+        margin-bottom: 15px;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        font-size: 14px;
+    `;
+    
+    // 添加"返回根"按钮
+    const rootButton = document.createElement('button');
+    rootButton.textContent = '⟲ 返回根';
+    rootButton.style.cssText = `
+        padding: 4px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: white;
+        cursor: pointer;
+        font-size: 13px;
+        color: #666;
+        transition: all 0.2s;
+    `;
+    rootButton.addEventListener('click', () => {
+        if (window.familyTreeData) {
+            generateFamilyTree(window.familyTreeData, currentPerson.人物ID);
+        }
+    });
+    rootButton.addEventListener('mouseenter', () => {
+        rootButton.style.backgroundColor = '#e9ecef';
+    });
+    rootButton.addEventListener('mouseleave', () => {
+        rootButton.style.backgroundColor = 'white';
+    });
+    container.appendChild(rootButton);
+    
+    // 添加分隔符
+    const addSeparator = () => {
+        const sep = document.createElement('span');
+        sep.textContent = '›';
+        sep.style.cssText = `color: #999; font-size: 18px;`;
+        container.appendChild(sep);
+    };
+    
+    addSeparator();
+    
+    // 渲染祖先节点
+    ancestors.forEach((ancestor, index) => {
+        const link = document.createElement('button');
+        link.textContent = ancestor.name;
+        link.title = `${ancestor.relation}：${ancestor.name}`;
+        link.style.cssText = `
+            padding: 4px 10px;
+            border: 1px solid #4CAF50;
+            border-radius: 4px;
+            background: white;
+            color: #4CAF50;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        `;
+        link.addEventListener('click', () => {
+            if (window.familyTreeData) {
+                generateFamilyTree(window.familyTreeData, ancestor.id);
+            }
+        });
+        link.addEventListener('mouseenter', () => {
+            link.style.backgroundColor = '#4CAF50';
+            link.style.color = 'white';
+        });
+        link.addEventListener('mouseleave', () => {
+            link.style.backgroundColor = 'white';
+            link.style.color = '#4CAF50';
+        });
+        container.appendChild(link);
+        
+        // 如果不是最后一个祖先，添加分隔符
+        if (index < ancestors.length - 1) {
+            addSeparator();
+        }
+    });
+    
+    // 当前节点
+    addSeparator();
+    const currentSpan = document.createElement('span');
+    currentSpan.textContent = currentPerson.姓名 || '未知';
+    currentSpan.style.cssText = `
+        padding: 4px 10px;
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 4px;
+        font-weight: bold;
+        font-size: 13px;
+    `;
+    container.appendChild(currentSpan);
+    
+    return container;
+}
+
 // ============================================
 // 原有代码从下面继续
 // ============================================
@@ -212,6 +369,17 @@ function generateFamilyTree(data, selectedRootId = null) {
     
     // 缓存映射供其他函数使用
     window.personMap = personMap;
+    window.familyTreeData = data;
+
+    // ============================================
+    // 添加面包屑导航（如果选择了根节点）
+    // ============================================
+    if (selectedRootId && personMap[selectedRootId]) {
+        const breadcrumb = createBreadcrumb(personMap[selectedRootId], personMap);
+        if (breadcrumb) {
+            container.appendChild(breadcrumb);
+        }
+    }
 
     // 创建下拉框容器
     const selectContainer = document.createElement('div');
@@ -779,4 +947,4 @@ function buildTree(person, level = 0, parentInfo = null) {
 }
 
 // 导出核心函数供测试使用（必须放在函数定义之后）
-export { buildTree, calculateTreeSize, getGenderIcon, getChildOrderLabel, validateFamilyData, detectCycles }; 
+export { buildTree, calculateTreeSize, getGenderIcon, getChildOrderLabel, validateFamilyData, detectCycles, getAncestorPath, createBreadcrumb }; 
