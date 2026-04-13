@@ -260,6 +260,9 @@ function createBreadcrumb(currentPerson, personMap) {
     // 添加"返回根"按钮
     const rootButton = document.createElement('button');
     rootButton.textContent = '⟲ 返回根';
+    rootButton.type = 'button';
+    rootButton.tabIndex = 0;
+    rootButton.setAttribute('aria-label', '返回根节点');
     rootButton.style.cssText = `
         padding: 4px 12px;
         border: 1px solid #ddd;
@@ -270,7 +273,8 @@ function createBreadcrumb(currentPerson, personMap) {
         color: #666;
         transition: all 0.2s;
     `;
-    rootButton.addEventListener('click', () => {
+    rootButton.addEventListener('click', (e) => {
+        e.preventDefault();
         if (window.familyTreeData) {
             generateFamilyTree(window.familyTreeData, currentPerson.人物ID);
         }
@@ -280,6 +284,13 @@ function createBreadcrumb(currentPerson, personMap) {
     });
     rootButton.addEventListener('mouseleave', () => {
         rootButton.style.backgroundColor = 'white';
+    });
+    // 键盘支持
+    rootButton.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            rootButton.click();
+        }
     });
     container.appendChild(rootButton);
     
@@ -297,6 +308,9 @@ function createBreadcrumb(currentPerson, personMap) {
     ancestors.forEach((ancestor, index) => {
         const link = document.createElement('button');
         link.textContent = ancestor.name;
+        link.type = 'button';
+        link.tabIndex = 0;
+        link.setAttribute('aria-label', `${ancestor.relation}：${ancestor.name}，点击切换根节点`);
         link.title = `${ancestor.relation}：${ancestor.name}`;
         link.style.cssText = `
             padding: 4px 10px;
@@ -308,7 +322,8 @@ function createBreadcrumb(currentPerson, personMap) {
             font-size: 13px;
             transition: all 0.2s;
         `;
-        link.addEventListener('click', () => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
             if (window.familyTreeData) {
                 generateFamilyTree(window.familyTreeData, ancestor.id);
             }
@@ -320,6 +335,13 @@ function createBreadcrumb(currentPerson, personMap) {
         link.addEventListener('mouseleave', () => {
             link.style.backgroundColor = 'white';
             link.style.color = '#4CAF50';
+        });
+        // 键盘支持
+        link.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                link.click();
+            }
         });
         container.appendChild(link);
         
@@ -493,35 +515,142 @@ function generateFamilyTree(data, selectedRootId = null) {
         const options = Array.from(rootSelect.querySelectorAll('option')).slice(1);
         options.forEach(option => {
             option.style.display = '';
+            option.classList.remove('keyboard-highlight');
         });
     });
     
-    // 按键事件处理
+    // 键盘导航状态
+    let highlightedIndex = -1;
+    let visibleOptions = [];
+    
+    // 更新高亮显示
+    function updateHighlight(newIndex) {
+        // 移除旧的高亮
+        visibleOptions.forEach((option, idx) => {
+            if (idx === newIndex) {
+                option.classList.add('keyboard-highlight');
+                option.scrollIntoView({ block: 'nearest' });
+            } else {
+                option.classList.remove('keyboard-highlight');
+            }
+        });
+        highlightedIndex = newIndex;
+    }
+    
+    // 获取当前可见选项列表
+    function getVisibleOptions() {
+        return Array.from(rootSelect.querySelectorAll('option'))
+            .filter(option => option.style.display !== 'none' && option.value);
+    }
+    
+    // 按键事件处理 - 完整键盘导航
     searchInput.addEventListener('keydown', function(e) {
-        // ESC键清空搜索
+        visibleOptions = getVisibleOptions();
+        
+        // ESC 键清空搜索
         if (e.key === 'Escape') {
+            e.preventDefault();
             this.value = '';
             clearButton.style.display = 'none';
+            highlightedIndex = -1;
             
-            // 恢复所有选项可见
-            const options = Array.from(rootSelect.querySelectorAll('option')).slice(1);
-            options.forEach(option => {
+            // 恢复所有选项可见并移除高亮
+            const allOptions = Array.from(rootSelect.querySelectorAll('option'));
+            allOptions.forEach(option => {
                 option.style.display = '';
+                option.classList.remove('keyboard-highlight');
             });
+            
+            // 隐藏下拉框
+            rootSelect.blur();
+            return;
         }
         
-        // Enter键选择第一个可见选项
+        // 向下箭头 - 向下移动高亮
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (visibleOptions.length === 0) return;
+            
+            // 如果下拉框未打开，先打开
+            if (document.activeElement !== rootSelect) {
+                rootSelect.focus();
+            }
+            
+            const newIndex = Math.min(highlightedIndex + 1, visibleOptions.length - 1);
+            updateHighlight(newIndex);
+            rootSelect.value = visibleOptions[newIndex].value;
+            return;
+        }
+        
+        // 向上箭头 - 向上移动高亮
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (visibleOptions.length === 0) return;
+            
+            if (document.activeElement !== rootSelect) {
+                rootSelect.focus();
+            }
+            
+            const newIndex = Math.max(highlightedIndex - 1, 0);
+            updateHighlight(newIndex);
+            rootSelect.value = visibleOptions[newIndex].value;
+            return;
+        }
+        
+        // Enter 键选择高亮项
         if (e.key === 'Enter') {
             e.preventDefault();
-            
-            const visibleOptions = Array.from(rootSelect.querySelectorAll('option'))
-                .filter(option => option.style.display !== 'none' && option.value);
-            
-            if (visibleOptions.length > 0) {
-                rootSelect.value = visibleOptions[0].value;
-                generateFamilyTree(data, visibleOptions[0].value);
+            if (highlightedIndex >= 0 && visibleOptions[highlightedIndex]) {
+                const selectedOption = visibleOptions[highlightedIndex];
+                rootSelect.value = selectedOption.value;
+                searchInput.value = selectedOption.textContent;
+                generateFamilyTree(data, selectedOption.value);
+                rootSelect.blur();
+                highlightedIndex = -1;
+                visibleOptions.forEach(opt => opt.classList.remove('keyboard-highlight'));
+            } else if (visibleOptions.length > 0) {
+                // 如果没有高亮但有可见选项，选择第一个
+                const firstOption = visibleOptions[0];
+                rootSelect.value = firstOption.value;
+                searchInput.value = firstOption.textContent;
+                generateFamilyTree(data, firstOption.value);
+                rootSelect.blur();
+            }
+            return;
+        }
+        
+        // Tab 键：如果下拉框打开且有高亮，选择高亮项
+        if (e.key === 'Tab') {
+            if (highlightedIndex >= 0 && visibleOptions[highlightedIndex]) {
+                e.preventDefault();
+                const selectedOption = visibleOptions[highlightedIndex];
+                rootSelect.value = selectedOption.value;
+                searchInput.value = selectedOption.textContent;
+                generateFamilyTree(data, selectedOption.value);
+                highlightedIndex = -1;
+                visibleOptions.forEach(opt => opt.classList.remove('keyboard-highlight'));
             }
         }
+    });
+    
+    // 下拉列表获得焦点时，高亮第一项
+    rootSelect.addEventListener('focus', function() {
+        const currentVisible = getVisibleOptions();
+        if (currentVisible.length > 0) {
+            // 找到当前选中项的位置
+            const currentValue = this.value;
+            const currentIndex = currentVisible.findIndex(opt => opt.value === currentValue);
+            highlightedIndex = currentIndex >= 0 ? currentIndex : 0;
+            updateHighlight(highlightedIndex);
+        }
+    });
+    
+    // 下拉列表失焦时清除高亮
+    rootSelect.addEventListener('blur', function() {
+        setTimeout(() => {
+            visibleOptions.forEach(opt => opt.classList.remove('keyboard-highlight'));
+            highlightedIndex = -1;
+        }, 100);
     });
     
     // 下拉列表变化事件
