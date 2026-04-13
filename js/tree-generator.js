@@ -1145,7 +1145,14 @@ function startInlineEdit(personId, field, displayEl, personEl) {
     const input = document.createElement('input');
     input.type = field === '出生日期' ? 'date' : 'text';
     input.className = 'inline-edit-input';
-    input.value = field === '出生日期' ? originalValue : (person.姓名 || '');
+    if (field === '出生日期') {
+        const date = parseDate(originalValue);
+        input.value = formatDateForInput(date);
+        input.min = '1900-01-01';
+        input.max = '2100-12-31';
+    } else {
+        input.value = person.姓名 || '';
+    }
     
     // 替换显示内容
     displayEl.innerHTML = '';
@@ -1263,6 +1270,17 @@ function getDisplayValue(field, rawValue) {
         return formatDate(date);
     }
     return rawValue;
+}
+
+/**
+ * 将日期格式化为 input[type=date] 需要的格式 (yyyy-mm-dd)
+ */
+function formatDateForInput(date) {
+    if (!date || isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 /**
