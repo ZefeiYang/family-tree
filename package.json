@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint . --ext .js",
+    "lint": "eslint js/**/*.js tests/**/*.js --no-error-on-unmatched-pattern",
+    "lint:fix": "eslint js/**/*.js tests/**/*.js --fix --no-error-on-unmatched-pattern",
     "format": "prettier --write ."
   },
   "keywords": [],
@@ -17,14 +18,19 @@
   "license": "ISC",
   "description": "A web-based family tree generator",
   "devDependencies": {
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.5",
+    "jsdom": "^26.1.0",
+    "prettier": "^3.8.2",
     "vite": "^6.2.5",
-    "vitest": "^2.1.8",
-    "jsdom": "^26.1.0"
+    "vitest": "^2.1.8"
   },
   "dependencies": {
-    "lunar-javascript": "^1.7.2",
-    "xlsx": "^0.18.5",
     "html2canvas": "^1.4.1",
-    "jspdf": "^3.0.1"
+    "jspdf": "^3.0.1",
+    "lunar-javascript": "^1.7.2",
+    "xlsx": "^0.18.5"
   }
 }

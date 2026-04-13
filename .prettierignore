@@ -1,0 +1,33 @@
+# Prettier 忽略文件
+
+node_modules/
+dist/
+build/
+coverage/
+.vscode/
+.idea/
+*.min.js
+*.bundle.js
+
+# 数据文件
+data/
+tmp/
+*.xlsx
+*.json (但排除我们代码中的示例数据)
+
+# Git
+.git/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+npm-debug.log*
+
+# 第三方库（已压缩）
+js/xlsx.full.min.js
+
+# 依赖
+package-lock.json
