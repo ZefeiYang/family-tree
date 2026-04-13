@@ -1,5 +1,5 @@
 // 核心JS文件，处理初始化和事件监听
-import { validateFamilyData } from './tree-generator.js';
+import { validateFamilyData, calculateGenerations } from './tree-generator.js';
 
 let jsPDF;
 try {
@@ -110,6 +110,8 @@ function initApp() {
     const exportPngButton = document.getElementById('exportPng');
     const exportPdfButton = document.getElementById('exportPdf');
     const exportSvgButton = document.getElementById('exportSvg');
+    const exportJsonButton = document.getElementById('exportJson');
+    const importJsonInput = document.getElementById('importJson');
 
     // 监听样式变化
     treeStyleSelect.addEventListener('change', handleStyleChange);
@@ -125,6 +127,19 @@ function initApp() {
     exportPdfButton.addEventListener('click', exportAsPdf);
     if (exportSvgButton) {
         exportSvgButton.addEventListener('click', exportAsSvg);
+    }
+    if (exportJsonButton) {
+        exportJsonButton.addEventListener('click', exportAsJson);
+    }
+    
+    // JSON 导入
+    if (importJsonInput) {
+        importJsonInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                importFromJson(file);
+            }
+        });
     }
 }
 
@@ -551,6 +566,149 @@ function exportAsSvg() {
         alert('生成SVG失败，请稍后再试');
     }
 }
+
+// 导出为JSON
+function exportAsJson() {
+    if (!window.familyTreeData || window.familyTreeData.length === 0) {
+        alert('没有可导出的数据，请先导入族谱');
+        return;
+    }
+    
+    try {
+        const data = window.familyTreeData;
+        const exportData = {
+            metadata: {
+                version: '1.0',
+                exportedAt: new Date().toISOString(),
+                source: 'family-tree-generator',
+                totalPersons: data.length,
+                generations: calculateGenerations(data)
+            },
+            persons: data
+        };
+        
+        const jsonStr = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `家族族谱_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('导出JSON失败：', error);
+        alert('导出JSON失败，请稍后再试');
+    }
+}
+
+// 导入JSON文件
+function importFromJson(file) {
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            const content = e.target.result;
+            const data = JSON.parse(content);
+            
+            // 验证数据结构
+            if (!data.persons || !Array.isArray(data.persons)) {
+                alert('JSON 格式错误：缺少 persons 数组');
+                return;
+            }
+            
+            // 显示导入预览
+            showImportPreview(data);
+        } catch (error) {
+            console.error('解析JSON失败：', error);
+            alert('JSON 解析失败，请检查文件格式');
+        }
+    };
+    
+    reader.onerror = function() {
+        alert('读取文件失败');
+    };
+    
+    reader.readAsText(file);
+}
+
+// 显示导入预览
+function showImportPreview(importData) {
+    const container = document.getElementById('tree-container');
+    if (!container) return;
+    
+    const persons = importData.persons;
+    const metadata = importData.metadata || {};
+    
+    const previewHtml = `
+        <div class="import-preview" style="
+            background-color: #fff;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 600px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        ">
+            <h3 style="color: #2e7d32; margin-top: 0; display: flex; align-items: center; gap: 8px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                </svg>
+                导入预览
+            </h3>
+            <div style="display: grid; gap: 10px; margin: 15px 0;">
+                <p><strong>数据统计：</strong></p>
+                <ul style="margin: 5px 0; padding-left: 20px;">
+                    <li>人物总数：<strong>${persons.length}</strong> 人</li>
+                    ${metadata.generations ? `<li>世代数：<strong>${metadata.generations}</strong> 代</li>` : ''}
+                    <li>导出时间：${metadata.exportedAt ? new Date(metadata.exportedAt).toLocaleString('zh-CN') : '未知'}</li>
+                    <li>数据源：${metadata.source || '未知'}</li>
+                </ul>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button id="confirmImport" style="
+                    flex: 1;
+                    padding: 10px 20px;
+                    background-color: #4CAF50;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: bold;
+                ">确认导入</button>
+                <button id="cancelImport" style="
+                    flex: 1;
+                    padding: 10px 20px;
+                    background-color: #f5f5f5;
+                    color: #666;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                ">取消</button>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = previewHtml;
+    
+    // 绑定按钮事件
+    document.getElementById('confirmImport').addEventListener('click', () => {
+        window.familyTreeData = persons;
+        generateFamilyTree(persons);
+        // 触发文件输入清空
+        document.getElementById('excelFile').value = '';
+    });
+    
+    document.getElementById('cancelImport').addEventListener('click', () => {
+        container.innerHTML = '';
+        document.getElementById('excelFile').value = '';
+    });
+}
+
+// 计算世代数（用于元数据）
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', initApp);

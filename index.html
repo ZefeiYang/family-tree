@@ -97,6 +97,27 @@
             <button id="exportPng">导出为图片</button>
             <button id="exportPdf">导出为PDF</button>
             <button id="exportSvg">导出为SVG</button>
+            <button id="exportJson">导出JSON</button>
+        </div>
+        
+        <!-- 导入区域 -->
+        <div class="import-section" style="margin-top: 20px; text-align: center;">
+            <label for="importJson" class="import-label" style="
+                display: inline-block;
+                padding: 10px 20px;
+                background-color: #2196F3;
+                color: white;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: background-color 0.3s;
+            " onmouseover="this.style.backgroundColor='#1976D2'" onmouseout="this.style.backgroundColor='#2196F3'">
+                📥 导入JSON
+            </label>
+            <input type="file" id="importJson" accept=".json" style="display: none;">
+            <p style="color: #666; font-size: 12px; margin-top: 8px;">
+                支持从JSON文件恢复族谱数据（包含元数据）
+            </p>
         </div>
     </div>
     

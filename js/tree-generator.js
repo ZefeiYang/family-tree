@@ -1076,4 +1076,4 @@ function buildTree(person, level = 0, parentInfo = null) {
 }
 
 // 导出核心函数供测试使用（必须放在函数定义之后）
-export { buildTree, calculateTreeSize, getGenderIcon, getChildOrderLabel, validateFamilyData, detectCycles, getAncestorPath, createBreadcrumb }; 
+export { buildTree, calculateTreeSize, getGenderIcon, getChildOrderLabel, validateFamilyData, detectCycles, getAncestorPath, createBreadcrumb, calculateGenerations }; 
