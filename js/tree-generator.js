@@ -1221,6 +1221,11 @@ function saveEdit() {
     
     // 显示成功提示
     showEditStatus(displayEl, 'success');
+    
+    // 触发自动保存（如果在 core.js 中已加载）
+    if (typeof window.scheduleAutoSave === 'function') {
+        window.scheduleAutoSave();
+    }
 }
 
 /**

@@ -1,5 +1,6 @@
 // 核心JS文件，处理初始化和事件监听
 import { validateFamilyData, calculateGenerations } from './tree-generator.js';
+import { familyDB } from './db.js';
 
 let jsPDF;
 try {
@@ -93,7 +94,7 @@ function checkDependencies() {
 window.familyTreeData = null;
 
 // 初始化函数
-function initApp() {
+async function initApp() {
     // 检查依赖
     const dependenciesLoaded = checkDependencies();
     if (!dependenciesLoaded) {
@@ -102,6 +103,48 @@ function initApp() {
             container.innerHTML = '<div class="error-message" style="color: red; padding: 20px; text-align: center;">警告：部分必要的库未能加载，功能可能会受限。请检查您的网络连接或刷新页面重试。</div>';
         }
     }
+
+    // 初始化 IndexedDB
+    try {
+        await familyDB.init();
+        console.log('✅ 本地数据库已连接');
+    } catch (error) {
+        console.error('❌ 本地数据库连接失败:', error);
+    }
+
+    // 自动保存定时器
+    let autoSaveTimer = null;
+
+    // 自动保存函数（防抖 1 秒）
+    window.scheduleAutoSave = () => {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(async () => {
+            if (window.familyTreeData && window.familyTreeData.length > 0) {
+                try {
+                    // 获取当前项目 ID（如果有）
+                    const currentProjectId = localStorage.getItem('currentProjectId');
+                    const projectName = document.title || '未命名族谱';
+                    
+                    await familyDB.saveProject(
+                        {
+                            id: currentProjectId,
+                            name: projectName,
+                            personCount: window.familyTreeData.length
+                        },
+                        window.familyTreeData,
+                        true // 创建版本
+                    );
+                    
+                    console.log('✅ 自动保存完成');
+                } catch (error) {
+                    console.error('❌ 自动保存失败:', error);
+                }
+            }
+        }, 1000);
+    };
+
+    // 监听编辑事件（从 tree-generator.js 调用）
+    // 注意：tree-generator.js 中的 saveEdit 函数调用后，会触发 scheduleAutoSave()
 
     // 获取DOM元素
     const treeStyleSelect = document.getElementById('treeStyle');
@@ -141,7 +184,180 @@ function initApp() {
             }
         });
     }
+
+    // ============================================
+    // 侧边栏：项目管理和自动保存
+    // ============================================
+    
+    // 侧边栏元素
+    const sidebar = document.getElementById('sidebar');
+    const projectList = document.getElementById('project-list');
+    const closeSidebarBtn = document.getElementById('closeSidebar');
+    const newProjectBtn = document.getElementById('newProjectBtn');
+    
+    // 切换侧边栏显示/隐藏
+    if (closeSidebarBtn) {
+        closeSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+        });
+    }
+    
+    // 加载项目列表
+    async function loadProjectList() {
+        if (!projectList) return;
+        
+        try {
+            const projects = await familyDB.listProjects();
+            projectList.innerHTML = '';
+            
+            if (projects.length === 0) {
+                projectList.innerHTML = '<div class="empty-state">暂无保存的项目</div>';
+                return;
+            }
+            
+            projects.forEach(project => {
+                const item = document.createElement('div');
+                item.className = 'project-item';
+                item.dataset.projectId = project.id;
+                
+                const date = new Date(project.updatedAt).toLocaleDateString('zh-CN');
+                
+                item.innerHTML = `
+                    <div class="project-item-header">
+                        <span class="project-name">${project.name}</span>
+                        <button class="project-delete" title="删除项目">🗑</button>
+                    </div>
+                    <div class="project-meta">
+                        ${project.personCount} 人 · 更新于 ${date}
+                    </div>
+                `;
+                
+                // 点击加载项目
+                item.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('project-delete')) {
+                        e.stopPropagation();
+                        deleteProject(project.id);
+                        return;
+                    }
+                    loadProjectToEditor(project.id);
+                });
+                
+                projectList.appendChild(item);
+            });
+        } catch (error) {
+            console.error('加载项目列表失败:', error);
+        }
+    }
+    
+    // 加载项目到编辑器
+    async function loadProjectToEditor(projectId) {
+        try {
+            const { project, data } = await familyDB.loadProject(projectId);
+            
+            // 更新当前项目 ID
+            localStorage.setItem('currentProjectId', project.id);
+            
+            // 更新文档标题
+            document.title = project.name;
+            
+            // 加载数据并渲染族谱
+            window.familyTreeData = data;
+            generateFamilyTree(data);
+            
+            // 高亮当前项目
+            document.querySelectorAll('.project-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.projectId === projectId);
+            });
+            
+            // 关闭侧边栏
+            sidebar.classList.remove('open');
+            
+            console.log(`✅ 已加载项目: ${project.name}`);
+        } catch (error) {
+            console.error('加载项目失败:', error);
+            alert('加载项目失败: ' + error.message);
+        }
+    }
+    
+    // 删除项目
+    async function deleteProject(projectId) {
+        if (!confirm('确定要删除这个项目吗？此操作不可撤销。')) {
+            return;
+        }
+        
+        try {
+            await familyDB.deleteProject(projectId);
+            localStorage.removeItem('currentProjectId');
+            await loadProjectList();
+            console.log('✅ 项目已删除');
+        } catch (error) {
+            console.error('删除项目失败:', error);
+            alert('删除项目失败: ' + error.message);
+        }
+    }
+    
+    // 新建/保存项目
+    async function saveCurrentProject() {
+        if (!window.familyTreeData || window.familyTreeData.length === 0) {
+            alert('没有可保存的数据');
+            return;
+        }
+        
+        const currentProjectId = localStorage.getItem('currentProjectId');
+        const projectName = prompt('项目名称:', document.title);
+        if (!projectName) return;
+        
+        try {
+            const projectId = await familyDB.saveProject(
+                {
+                    id: currentProjectId || null,
+                    name: projectName,
+                    personCount: window.familyTreeData.length
+                },
+                window.familyTreeData,
+                true // 创建版本
+            );
+            
+            localStorage.setItem('currentProjectId', projectId);
+            document.title = projectName;
+            
+            await loadProjectList();
+            alert('✅ 项目已保存');
+        } catch (error) {
+            console.error('保存项目失败:', error);
+            alert('保存项目失败: ' + error.message);
+        }
+    }
+    
+    // 绑定新建项目按钮
+    if (newProjectBtn) {
+        newProjectBtn.addEventListener('click', saveCurrentProject);
+    }
+    
+    // 初始化：加载项目列表
+    await loadProjectList();
+    
+    // 恢复上次打开的项目
+    const lastProjectId = localStorage.getItem('currentProjectId');
+    if (lastProjectId) {
+        try {
+            const { project, data } = await familyDB.loadProject(lastProjectId);
+            window.familyTreeData = data;
+            generateFamilyTree(data);
+            document.title = project.name;
+            
+            // 高亮当前项目
+            const currentItem = projectList.querySelector(`[data-project-id="${lastProjectId}"]`);
+            if (currentItem) currentItem.classList.add('active');
+        } catch (error) {
+            console.log('上次打开的项目不存在，已清除记录');
+            localStorage.removeItem('currentProjectId');
+        }
+    }
+    
 }
+
+// 计算世代数（用于元数据）
 
 // 样式变化处理函数
 function handleStyleChange() {
@@ -200,6 +416,11 @@ function handleFileUpload(e) {
         // 保存数据以便日历样式更改时使用
         window.familyTreeData = jsonData;
         generateFamilyTree(jsonData);
+        
+        // 自动保存新导入的数据
+        if (typeof window.scheduleAutoSave === 'function') {
+            window.scheduleAutoSave();
+        }
     };
     reader.readAsArrayBuffer(file);
 }

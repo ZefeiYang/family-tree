@@ -40,6 +40,7 @@
 </head>
 <body>
     <div class="container">
+        <button id="toggleSidebar" title="显示项目列表">☰ 项目</button>
         <h1>家族族谱生成器</h1>
         <div class="controls">
             <div class="file-upload">
@@ -120,6 +121,20 @@
             </p>
         </div>
     </div>
+    
+    <!-- 侧边栏：项目列表 -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3>📁 项目</h3>
+            <button id="closeSidebar" class="close-btn" title="关闭">×</button>
+        </div>
+        <div class="project-list" id="project-list">
+            <!-- 项目列表动态生成 -->
+        </div>
+        <div class="sidebar-footer">
+            <button id="newProjectBtn" class="new-project-btn">+ 新建项目</button>
+        </div>
+    </aside>
     
     <!-- 自定义 JS 文件 -->
     <script src="js/date-utils.js"></script>
